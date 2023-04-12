@@ -151,43 +151,12 @@ class ComparisonEvaluator:
             'price': fare
         }
     
-    def eval_bus(self, data, mode='transit', transit_mode='bus'):
+    def eval_public_transport(self, data, mode='transit'):
         x1, y1, x2, y2 = data['pickup_lat'], data['pickup_lon'], data['dropoff_lat'], data['dropoff_lon']
         coords_start = f'{x1},{y1}'
         coords_end   = f'{x2},{y2}'
         
-        data = self.google_client.directions(coords_start, coords_end, mode=mode, transit_mode=transit_mode)
-        
-        result = []
-        for step in data[0]['legs'][0]['steps']:
-            distance = step['distance']['value'] / 1000 # km 단위
-            duration = step['duration']['value'] / 60 # 분 단위
-            if step.get('transit_details'):
-                travel_type = step['transit_details']['line']['vehicle']['type']
-            else:
-                travel_type = step['travel_mode']
-            
-            result.append({
-                'distance': distance,
-                'duration': duration,
-                'price': 0,
-                'travel_type': travel_type
-            })
-        
-        return {
-            'waiting_time': 0,
-            'walking_time': sum(list(map(lambda x: x['duration'] if x['travel_type'] == 'WALKING' else 0, result))),
-            'veh_moving_time': sum(list(map(lambda x: x['duration'] if x['travel_type'] != 'WALKING' else 0, result))),
-            'veh_moving_dist': sum(list(map(lambda x: x['distance'] if x['travel_type'] != 'WALKING' else 0, result))),
-            'veh_moving_price': 0,
-        }
-    
-    def eval_subway(self, data, mode='transit', transit_mode='subway'):
-        x1, y1, x2, y2 = data['pickup_lat'], data['pickup_lon'], data['dropoff_lat'], data['dropoff_lon']
-        coords_start = f'{x1},{y1}'
-        coords_end   = f'{x2},{y2}'
-        
-        data = self.google_client.directions(coords_start, coords_end, mode=mode, transit_mode=transit_mode)
+        data = self.google_client.directions(coords_start, coords_end, mode=mode)
         
         result = []
         for step in data[0]['legs'][0]['steps']:
@@ -232,8 +201,8 @@ class ComparisonEvaluator:
             sum(veh_moving_price) / len(self.raw),
         )
 
-    def eval_bus_total(self):
-        result = self.raw.apply(self.eval_bus, axis=1).to_list()
+    def eval_public_transport_total(self):
+        result = self.raw.apply(self.eval_public_transport, axis=1).to_list()
         
         waiting_time = list(map(lambda x: x['waiting_time'], result))
         walking_time = list(map(lambda x: x['walking_time'], result))
@@ -242,22 +211,7 @@ class ComparisonEvaluator:
         veh_moving_price = list(map(lambda x: x['veh_moving_price'], result))
         
         self.to_save_array(
-            'bus', sum(waiting_time), sum(walking_time), sum(veh_moving_time), sum(veh_moving_dist), sum(veh_moving_price),
-            sum(waiting_time) / len(self.raw), sum(walking_time) / len(self.raw),
-            sum(veh_moving_time) / len(self.raw), sum(veh_moving_dist) / len(self.raw), sum(veh_moving_price) / len(self.raw)
-        )
-
-    def eval_subway_total(self):
-        result = self.raw.apply(self.eval_subway, axis=1).to_list()
-        
-        waiting_time = list(map(lambda x: x['waiting_time'], result))
-        walking_time = list(map(lambda x: x['walking_time'], result))
-        veh_moving_time = list(map(lambda x: x['veh_moving_time'], result))
-        veh_moving_dist = list(map(lambda x: x['veh_moving_dist'], result))
-        veh_moving_price = list(map(lambda x: x['veh_moving_price'], result))
-        
-        self.to_save_array(
-            'subway', sum(waiting_time), sum(walking_time), sum(veh_moving_time), sum(veh_moving_dist), sum(veh_moving_price),
+            'public_transport', sum(waiting_time), sum(walking_time), sum(veh_moving_time), sum(veh_moving_dist), sum(veh_moving_price),
             sum(waiting_time) / len(self.raw), sum(walking_time) / len(self.raw),
             sum(veh_moving_time) / len(self.raw), sum(veh_moving_dist) / len(self.raw), sum(veh_moving_price) / len(self.raw)
         )
